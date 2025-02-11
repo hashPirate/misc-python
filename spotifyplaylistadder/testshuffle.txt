@@ -1,0 +1,93 @@
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth
+import random
+
+CLIENT_ID = '98ce96c5a4bd4613aa8ecd5b6fe7b7b5'
+CLIENT_SECRET = '0dd8031cb2684a10a203059852e7ccce'
+REDIRECT_URI = 'http://localhost:8888/callback/'
+
+SCOPE = 'playlist-read-private playlist-modify-public app-remote-control playlist-modify-private user-modify-playback-state user-read-playback-state user-read-currently-playing'
+
+sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=CLIENT_ID,
+                                               client_secret=CLIENT_SECRET,
+                                               redirect_uri=REDIRECT_URI,
+                                               scope=SCOPE))
+
+def list_playlists():
+    print("Your Playlists:")
+    playlists = []
+    offset = 0
+    limit = 50  # You can adjust the limit based on your needs
+
+    while True:
+        results = sp.current_user_playlists(offset=offset, limit=limit)
+        playlists.extend(results['items'])
+        offset += limit
+
+        if len(results['items']) < limit:
+            break
+
+    for i, playlist in enumerate(playlists):
+        print(f"{i + 1}. {playlist['name']}")
+
+    return playlists
+
+
+def get_playlists():
+    playlists = []
+    offset = 0
+    limit = 50  # You can adjust the limit based on your needs
+
+    while True:
+        results = sp.current_user_playlists(offset=offset, limit=limit)
+        playlists.extend(results['items'])
+        offset += limit
+
+        if len(results['items']) < limit:
+            break
+
+    return playlists
+
+def clear_and_shuffle_playlist(playlist_number):
+    playlists = get_playlists()
+
+    if 1 <= playlist_number <= len(playlists):
+        selected_playlist = playlists[playlist_number - 1]
+
+        tracks = []
+        offset = 0
+        limit = 100  # You can adjust the limit based on your needs
+
+        while True:
+            results = sp.playlist_tracks(selected_playlist['id'], fields='items(track(name,uri))', offset=offset, limit=limit)
+            tracks.extend(results['items'])
+            offset += limit
+
+            if len(results['items']) < limit:
+                break
+
+        sp.start_playback(device_id=None, uris=[])
+
+        random.shuffle(tracks)
+
+        uris = [track['track']['uri'] for track in tracks]
+        chunk_size = 100  # Adjust the chunk size based on the API limitations
+
+        for i in range(0, len(uris), chunk_size):
+            chunk = uris[i:i + chunk_size]
+            if chunk:
+                if uris:
+                   sp.add_to_queue(device_id=None, uris=chunk)
+
+        print(f"Playlist '{selected_playlist['name']}' shuffled and added to the queue.")
+    else:
+        print("Invalid playlist number.")
+
+
+
+
+
+if __name__ == "__main__":
+    list_playlists()
+    playlist_number = int(input("Enter the number of the playlist you want to shuffle and add to the queue: "))
+    clear_and_shuffle_playlist(playlist_number)
